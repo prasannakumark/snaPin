@@ -5,59 +5,84 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.api.GoogleAPI;
-import com.google.api.translate.Language;
-import com.google.api.translate.Translate;
+import com.google.api.client.extensions.android.http.AndroidHttp;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.http.HttpTransport;
+import com.google.api.client.json.JsonFactory;
+import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.services.vision.v1.Vision;
+import com.google.api.services.vision.v1.VisionRequest;
+import com.google.api.services.vision.v1.VisionRequestInitializer;
+import com.google.api.services.vision.v1.model.AnnotateImageRequest;
+import com.google.api.services.vision.v1.model.BatchAnnotateImagesRequest;
+import com.google.api.services.vision.v1.model.BatchAnnotateImagesResponse;
+import com.google.api.services.vision.v1.model.Feature;
+import com.google.api.services.vision.v1.model.Image;
+import com.google.api.services.vision.v1.model.ImageContext;
+import com.snapin.snapins.ocr.MainActivity;
+import com.snapin.snapins.ocr.PackageManagerUtils;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
 
 public class CroppingActivity extends AppCompatActivity {
-    ImageView preCroppingImageView, postCroppingImageView;
+    ImageView croppingImageView;
     Intent CropIntent;
     File file;
     Uri uri;
-    Bitmap bitmap;
+    Bitmap actualBitmap;
+    Bitmap croppedBitmap;
+    private static final String CLOUD_VISION_API_KEY = "AIzaSyAv3DOlSTm8GsBELySxOxw8EaPtBoqcYLg";
+    private static final String ANDROID_CERT_HEADER = "X-Android-Cert";
+    private static final String ANDROID_PACKAGE_HEADER = "X-Android-Package";
+    private TextView mImageDetails;
+    private static final String TAG = CroppingActivity.class.getSimpleName();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_cropping);
-        preCroppingImageView =(ImageView) findViewById(R.id.first_image_view);
-        postCroppingImageView =(ImageView)findViewById(R.id.second_image_view);
+        croppingImageView = (ImageView) findViewById(R.id.crop_image_view);
+        mImageDetails = (TextView) findViewById(R.id.image_details);
+        //Bundle extras = getIntent().getExtras();
+        //byte[] b = extras.getByteArray("picture");
 
-        Bundle extras = getIntent().getExtras();
-        byte[] b = extras.getByteArray("picture");
-
-        bitmap = BitmapFactory.decodeByteArray(b, 0, b.length);
-        try{
-             file = new File(Environment.getExternalStorageDirectory(),
+        //bitmap = BitmapFactory.decodeByteArray(b, 0, b.length);
+        actualBitmap = MainActivity.bitmap_b;
+        try {
+            file = new File(Environment.getExternalStorageDirectory(),
                     "file" + String.valueOf(System.currentTimeMillis()) + ".jpg");
-        }catch (Exception e){
+        } catch (Exception e) {
 
         }
 
         OutputStream _out = null;
         try {
             _out = new FileOutputStream(file);
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, _out);
+            actualBitmap.compress(Bitmap.CompressFormat.JPEG, 100, _out);
             _out.close();
-        }catch (Exception e){
+        } catch (Exception e) {
 
         }
 
         uri = Uri.fromFile(file);
 
-        preCroppingImageView.bringToFront();
-        preCroppingImageView.setImageBitmap(bitmap);
+        croppingImageView.setImageBitmap(actualBitmap);
         ImageCropFunction();
 
     }
@@ -69,23 +94,24 @@ public class CroppingActivity extends AppCompatActivity {
 
             if (data != null) {
                 Bundle bundle = data.getExtras();
-                bitmap = bundle.getParcelable("data");
-                postCroppingImageView.bringToFront();
-                preCroppingImageView.setImageBitmap(null);
-                postCroppingImageView.setImageBitmap(bitmap);
+                croppedBitmap = bundle.getParcelable("data");
+                croppingImageView.setImageBitmap(croppedBitmap);
             }
         }
     }
 
-    public void CancelMethod(View view){
-        preCroppingImageView.bringToFront();
-        postCroppingImageView.setImageBitmap(null);
+    public void cancel(View view) {
+        croppingImageView.setImageBitmap(actualBitmap);
         ImageCropFunction();
 
     }
 
-    public void SaveMethod(View view){
-        Toast.makeText(getApplicationContext(),"Need to Save",Toast.LENGTH_SHORT).show();
+    public void pinToMap(View view) {
+        //Toast.makeText(getApplicationContext(),"Need to Save",Toast.LENGTH_SHORT).show();
+        try {
+            callCloudVision(croppedBitmap);
+        } catch (IOException e) {
+        }
     }
 
     public void ImageCropFunction() {
@@ -105,5 +131,136 @@ public class CroppingActivity extends AppCompatActivity {
 
         } catch (ActivityNotFoundException e) {
         }
+    }
+
+    //Image Crop Code End Here
+
+    private void callCloudVision(final Bitmap bitmap) throws IOException {
+        // Switch text to loading
+        mImageDetails.setText(R.string.loading_message);
+
+        // Do the real work in an async task, because we need to use the network anyway
+        new AsyncTask<Object, Void, String>() {
+            @Override
+            protected String doInBackground(Object... params) {
+                try {
+                    HttpTransport httpTransport = AndroidHttp.newCompatibleTransport();
+                    JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
+
+                    VisionRequestInitializer requestInitializer =
+                            new VisionRequestInitializer(CLOUD_VISION_API_KEY) {
+                                /**
+                                 * We override this so we can inject important identifying fields into the HTTP
+                                 * headers. This enables use of a restricted cloud platform API key.
+                                 */
+                                @Override
+                                protected void initializeVisionRequest(VisionRequest<?> visionRequest)
+                                        throws IOException {
+                                    super.initializeVisionRequest(visionRequest);
+
+                                    String packageName = getPackageName();
+                                    visionRequest.getRequestHeaders().set(ANDROID_PACKAGE_HEADER, packageName);
+
+                                    String sig = PackageManagerUtils.getSignature(getPackageManager(), packageName);
+
+                                    visionRequest.getRequestHeaders().set(ANDROID_CERT_HEADER, sig);
+                                }
+                            };
+
+                    Vision.Builder builder = new Vision.Builder(httpTransport, jsonFactory, null);
+                    builder.setVisionRequestInitializer(requestInitializer);
+
+                    Vision vision = builder.build();
+
+                    BatchAnnotateImagesRequest batchAnnotateImagesRequest =
+                            new BatchAnnotateImagesRequest();
+                    batchAnnotateImagesRequest.setRequests(new ArrayList<AnnotateImageRequest>() {{
+                        AnnotateImageRequest annotateImageRequest = new AnnotateImageRequest();
+
+                        // Add the image
+                        Image base64EncodedImage = new Image();
+                        // Convert the bitmap to a JPEG
+                        // Just in case it's a format that Android understands but Cloud Vision
+                        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, byteArrayOutputStream);
+                        byte[] imageBytes = byteArrayOutputStream.toByteArray();
+
+                        // Base64 encode the JPEG
+                        base64EncodedImage.encodeContent(imageBytes);
+                        annotateImageRequest.setImage(base64EncodedImage);
+
+                        // add the features we want
+                        annotateImageRequest.setFeatures(new ArrayList<Feature>() {{
+                           /* Feature labelDetection = new Feature();
+                            labelDetection.setType("LABEL_DETECTION");
+                            labelDetection.setMaxResults(10);
+                            add(labelDetection);*/
+                            Feature textDetection = new Feature();
+                            textDetection.setType("TEXT_DETECTION");
+                            textDetection.setMaxResults(10);
+                            add(textDetection);
+                        }});
+
+                        //code to set new language
+                        /*ImageContext imageContext = new ImageContext();
+                        String[] languages = {"ta"};
+                        imageContext.setLanguageHints(Arrays.asList(languages));
+                        annotateImageRequest.setImageContext(imageContext);*/
+                        // Add the list of one thing to the request
+                        add(annotateImageRequest);
+                    }});
+
+                    Vision.Images.Annotate annotateRequest =
+                            vision.images().annotate(batchAnnotateImagesRequest);
+                    // Due to a bug: requests to Vision API containing large images fail when GZipped.
+                    annotateRequest.setDisableGZipContent(true);
+                    Log.d(TAG, "created Cloud Vision request object, sending request");
+
+                    BatchAnnotateImagesResponse response = annotateRequest.execute();
+                    return convertResponseToString(response);
+
+                } catch (GoogleJsonResponseException e) {
+                    Log.d(TAG, "failed to make API request because " + e.getContent());
+                } catch (IOException e) {
+                    Log.d(TAG, "failed to make API request because of other IOException " +
+                            e.getMessage());
+                }
+                return "Cloud Vision API request failed. Check logs for details.";
+            }
+
+            protected void onPostExecute(String result) {
+                mImageDetails.setText(result);
+                Toast.makeText(CroppingActivity.this, result, Toast.LENGTH_SHORT).show();
+                //set result address to MapActivity
+                if(message.length() != 0) {
+                    Intent mapIntent = new Intent(CroppingActivity.this, MapsActivity.class);
+                    mapIntent.putExtra("Search_info", message);
+                    startActivity(mapIntent);
+                }else{
+
+                }
+
+            }
+        }.execute();
+    }
+
+    String message = "";// = "I found these things:\n\n";
+
+    private String convertResponseToString(BatchAnnotateImagesResponse response) {
+        Log.d("response:", "" + response.toString());
+
+        /*List<EntityAnnotation> labels = response.getResponses().get(0).getTextAnnotations();
+        if (labels != null) {
+            for (EntityAnnotation label : labels) {
+                message += String.format(Locale.US, "%.3f: %s", label.getScore(), label.getDescription());
+                message += "\n";
+            }
+        } else {
+            message += "nothing";
+        }*/
+        if (response != null && response.getResponses() != null)
+            message = response.getResponses().get(0).getTextAnnotations().get(0).getDescription();
+        Log.v("TAG", "Search infor" + message);
+        return message;
     }
 }

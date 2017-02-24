@@ -17,27 +17,34 @@
         <ImageView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:id="@+id/first_image_view"/>
-        <ImageView
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:id="@+id/second_image_view"/>
+            android:id="@+id/crop_image_view"/>
     </FrameLayout>
+    <TextView
+        android:layout_below="@id/image_frameLayout"
+        android:id="@+id/image_details"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:textSize="20sp" />
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@+id/save_button"
-        android:text="Save"
+        android:id="@+id/pin_to_map_button"
+        android:text="Pin to map"
+        android:textColor="@android:color/white"
         android:textAllCaps="false"
-        android:onClick="SaveMethod"
-        android:layout_alignParentBottom="true"/>
+        android:onClick="pinToMap"
+        android:layout_alignParentBottom="true"
+        android:background="@color/colorPrimary"/>
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/cancel_button"
         android:text="Cancel"
+        android:textColor="@android:color/white"
         android:textAllCaps="false"
-        android:onClick="CancelMethod"
+        android:onClick="cancel"
         android:layout_alignParentBottom="true"
-        android:layout_alignParentRight="true"/>
+        android:layout_alignParentRight="true"
+        android:background="@color/colorPrimary"/>
 </RelativeLayout>

@@ -46,8 +46,10 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -99,12 +101,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         serviceRequest();
     }
 
-    private final LocationListener locationListener = new LocationListener() {
-        public void onLocationChanged(Location location) {
-
-        }
-    };
-
     /**
      * ATTENTION: This was auto-generated to implement the App Indexing API.
      * See https://g.co/AppIndexing/AndroidStudio for more information.
@@ -142,36 +138,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void showPoly() {
-
-        /*mMap.addMarker(new MarkerOptions().position(directionPoint.get(directionPoint.size()-1)).title("Destination Title")
-                .snippet("Destination Description"));
-        mMap.addMarker(new MarkerOptions().position(TO_LOCATION).title("Location Title")
-                .snippet("Location Description"));
-
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(TO_LOCATION, 40));
-
-        mMap.animateCamera(CameraUpdateFactory.zoomTo(10), 2000, null);
-
-        MarkerOptions markerOptions = new MarkerOptions();
-        PolylineOptions rectLine = new PolylineOptions().width(15)
-                .color(Color.RED);
-
-        for (int j = 0; j < directionPoint.size(); j++) {
-            rectLine.add(directionPoint.get(j));
-        }
-        rectLine.add(TO_LOCATION);
-        rectLine.geodesic(true);
-        // Adding route on the map
-        mMap.addPolyline(rectLine);
-        markerOptions.position(directionPoint.get(directionPoint.size()-1));
-        markerOptions.position(TO_LOCATION);
-        markerOptions.draggable(true);
-        mMap.addMarker(markerOptions);
-        CameraPosition cameraPosition = new CameraPosition.Builder()
-                .target(directionPoint.get(directionPoint.size()-1)).zoom(15.0f).build();
-        CameraUpdate cameraUpdate = CameraUpdateFactory
-                .newCameraPosition(cameraPosition);
-        mMap.moveCamera(cameraUpdate);*/
 
         // Already two locations
         if (directionPoint.size() > 1) {
@@ -345,13 +311,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // Executes in UI thread, after the parsing process
         @Override
         protected void onPostExecute(List<List<HashMap<String, String>>> result) {
-            ArrayList<LatLng> points = null;
+            ArrayList<LatLng> points = new ArrayList<LatLng>();
             PolylineOptions lineOptions = null;
             MarkerOptions markerOptions = new MarkerOptions();
             lineOptions = new PolylineOptions();
             // Traversing through all the routes
             for (int i = 0; i < result.size(); i++) {
-                points = new ArrayList<LatLng>();
 
 
                 // Fetching i-th route
@@ -441,7 +406,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         try {
             LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000, 10, new android.location.LocationListener() {
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000, 2000000, new android.location.LocationListener() {
                 @Override
                 public void onLocationChanged(Location location) {
                     TO_LOCATION = new LatLng(location.getLongitude(), location.getLatitude());
@@ -473,44 +438,61 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void serviceRequest() {
-        String asciiName = "???????";
-        StringRequest stringRequest = new StringRequest("https://maps.googleapis.com/maps/api/geocode/json?address="+"???????"+"&key=AIzaSyAv3DOlSTm8GsBELySxOxw8EaPtBoqcYLg"
-                ,
-                new Response.Listener<String>() {
-                    @Override
-                    public void onResponse(String response) {
-                        try {
-                            JSONObject jsonObject = new JSONObject(response);
+        String searchInfo = getIntent().getExtras().getString("Search_info");
+        searchInfo.replaceAll("[\r\n]+", " ");
+        Log.v("TAG", "Searching information " + searchInfo);
 
-                            JSONArray jsonArray = jsonObject.getJSONArray("results");
-                            if(jsonArray.length() == 0){
-                                loading.dismiss();
-                                Toast.makeText(MapsActivity.this,"Not Found",Toast.LENGTH_SHORT).show();
-                                return;
+        try {
+            String url = "https://maps.googleapis.com/maps/api/geocode/json?address=" + URLEncoder.encode(searchInfo, "UTF-8").replaceAll("\\+", "%20")
+                    .replaceAll("\\%21", "!")
+                    .replaceAll("\\%27", "'")
+                    .replaceAll("\\%28", "(")
+                    .replaceAll("\\%29", ")")
+                    .replaceAll("\\%7E", "~")
+                    .replaceAll("\\%0A", "%20")
+                    +"&key=AIzaSyAv3DOlSTm8GsBELySxOxw8EaPtBoqcYLg";
+            Log.v("TAG", "Searching information " + url);
+            Toast.makeText(this, searchInfo, Toast.LENGTH_SHORT).show();
+            StringRequest stringRequest = new StringRequest(url,
+                    new Response.Listener<String>() {
+                        @Override
+                        public void onResponse(String response) {
+                            try {
+                                JSONObject jsonObject = new JSONObject(response);
+
+                                JSONArray jsonArray = jsonObject.getJSONArray("results");
+                                if (jsonArray.length() == 0) {
+                                    loading.dismiss();
+                                    Toast.makeText(MapsActivity.this, "Not Found", Toast.LENGTH_SHORT).show();
+                                    return;
+                                }
+
+                                for (int i = 0; i < jsonArray.length(); i++) {
+                                    JSONObject jsonObject1 = jsonArray.getJSONObject(i);
+                                    JSONObject jsonObject2 = jsonObject1.getJSONObject("geometry");
+                                    JSONObject jsonObject6 = jsonObject2.getJSONObject("location");
+                                    directionPoint.add(new LatLng(jsonObject6.getDouble("lat"), jsonObject6.getDouble("lng")));
+
+                                    Log.v("TAG", "Json Response " + directionPoint);
+
+                                    showPoly();
+                                }
+                            } catch (JSONException ex) {
+                                Log.v("TAG", "Json Response error " + ex.getMessage());
                             }
-
-                            for (int i = 0; i < jsonArray.length(); i++) {
-                                JSONObject jsonObject1 = jsonArray.getJSONObject(i);
-                                JSONObject jsonObject2 = jsonObject1.getJSONObject("geometry");
-                                JSONObject jsonObject6 = jsonObject2.getJSONObject("location");
-                                directionPoint.add(new LatLng(jsonObject6.getDouble("lat"), jsonObject6.getDouble("lng")));
-
-                                Log.v("TAG", "Json Response " + directionPoint);
-
-                                showPoly();
-                            }
-                        } catch (JSONException ex) {
-                            Log.v("TAG", "Json Response error " + ex.getMessage());
                         }
-                    }
-                },
-                new Response.ErrorListener() {
-                    @Override
-                    public void onErrorResponse(VolleyError error) {
-                        Toast.makeText(MapsActivity.this, error.getMessage(), Toast.LENGTH_LONG).show();
-                    }
-                });
-        RequestQueue requestQueue = Volley.newRequestQueue(this);
-        requestQueue.add(stringRequest);
+                    },
+                    new Response.ErrorListener() {
+                        @Override
+                        public void onErrorResponse(VolleyError error) {
+                            Toast.makeText(MapsActivity.this, error.getMessage(), Toast.LENGTH_LONG).show();
+                        }
+                    });
+            RequestQueue requestQueue = Volley.newRequestQueue(this);
+            requestQueue.add(stringRequest);
+        } catch (UnsupportedEncodingException ignored) {
+            // Can be safely ignored because UTF-8 is always supported
+        }
+
     }
 }
