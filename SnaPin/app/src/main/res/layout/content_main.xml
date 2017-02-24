@@ -9,7 +9,7 @@
                 android:paddingRight="@dimen/activity_horizontal_margin"
                 android:paddingTop="@dimen/activity_vertical_margin"
                 app:layout_behavior="@string/appbar_scrolling_view_behavior"
-                tools:context="com.google.sample.cloudvision.MainActivity"
+                tools:context="com.snapin.snapins.ocr.MainActivity"
                 tools:showIn="@layout/activity_main">
 
     <ScrollView
@@ -28,11 +28,26 @@
                 android:layout_marginBottom="8dp"
                 android:text="Use the floating action button to select an image."/>
 
-            <ImageView
+            <com.snapin.snapins.TouchImageView
                 android:id="@+id/main_image"
                 android:layout_width="match_parent"
-                android:layout_height="200dp"
+                android:layout_height="350dp"
                 android:scaleType="fitCenter"/>
         </LinearLayout>
     </ScrollView>
+
+    <Button
+        android:id="@+id/start_crop"
+        android:layout_width="wrap_content"
+        android:layout_height="50dp"
+        android:paddingLeft="10dp"
+        android:paddingRight="10dp"
+        android:layout_marginBottom="5dp"
+        android:text="start to crop"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
+        android:textColor="@android:color/white"
+        android:background="@color/colorPrimary">
+        </Button>
 </RelativeLayout>
