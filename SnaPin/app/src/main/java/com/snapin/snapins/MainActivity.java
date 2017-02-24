@@ -11,9 +11,14 @@ import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
+
+import com.google.api.GoogleAPI;
+import com.google.api.translate.Language;
+import com.google.api.translate.Translate;
 
 import java.io.ByteArrayOutputStream;
 
@@ -66,6 +71,7 @@ public class MainActivity extends AppCompatActivity {
                 GetImageFromGallery();
             }
         });
+
     }
 
 
@@ -142,4 +148,7 @@ public class MainActivity extends AppCompatActivity {
                 break;
         }
     }
+
+
+
 }

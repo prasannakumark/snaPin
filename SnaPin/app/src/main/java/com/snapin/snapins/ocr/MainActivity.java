@@ -37,6 +37,9 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.detectlanguage.DetectLanguage;
+import com.detectlanguage.Result;
+import com.google.api.GoogleAPI;
 import com.google.api.client.extensions.android.http.AndroidHttp;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpTransport;
@@ -51,12 +54,15 @@ import com.google.api.services.vision.v1.model.BatchAnnotateImagesResponse;
 import com.google.api.services.vision.v1.model.EntityAnnotation;
 import com.google.api.services.vision.v1.model.Feature;
 import com.google.api.services.vision.v1.model.Image;
+import com.google.api.translate.Language;
+import com.google.api.translate.Translate;
 import com.snapin.snapins.R;
-
+import com.detectlanguage.DetectLanguage;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
     private static final String CLOUD_VISION_API_KEY = "AIzaSyAv3DOlSTm8GsBELySxOxw8EaPtBoqcYLg";
@@ -72,6 +78,7 @@ public class MainActivity extends AppCompatActivity {
 
     private TextView mImageDetails;
     private ImageView mMainImage;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -319,4 +326,5 @@ public class MainActivity extends AppCompatActivity {
         message += response.getResponses().get(0).getTextAnnotations().get(0).getDescription();
         return message;
     }
+
 }

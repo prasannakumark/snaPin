@@ -12,6 +12,10 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.Toast;
 
+import com.google.api.GoogleAPI;
+import com.google.api.translate.Language;
+import com.google.api.translate.Translate;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
@@ -102,5 +106,4 @@ public class CroppingActivity extends AppCompatActivity {
         } catch (ActivityNotFoundException e) {
         }
     }
-    //Image Crop Code End Here
 }

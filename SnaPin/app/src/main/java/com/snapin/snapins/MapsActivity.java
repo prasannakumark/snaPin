@@ -48,6 +48,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -94,10 +95,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
 
-        // Add a marker in Sydney and move the camera
-        LatLng sydney = new LatLng(-34, 151);
-        mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
         onClickEvent();
         serviceRequest();
     }
@@ -476,23 +473,25 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void serviceRequest() {
-        StringRequest stringRequest = new StringRequest("https://maps.googleapis.com/maps/api/geocode/json?address=hindupur&key=AIzaSyAv3DOlSTm8GsBELySxOxw8EaPtBoqcYLg",
+        String asciiName = "???????";
+        StringRequest stringRequest = new StringRequest("https://maps.googleapis.com/maps/api/geocode/json?address="+"???????"+"&key=AIzaSyAv3DOlSTm8GsBELySxOxw8EaPtBoqcYLg"
+                ,
                 new Response.Listener<String>() {
                     @Override
                     public void onResponse(String response) {
-
                         try {
                             JSONObject jsonObject = new JSONObject(response);
 
                             JSONArray jsonArray = jsonObject.getJSONArray("results");
+                            if(jsonArray.length() == 0){
+                                loading.dismiss();
+                                Toast.makeText(MapsActivity.this,"Not Found",Toast.LENGTH_SHORT).show();
+                                return;
+                            }
+
                             for (int i = 0; i < jsonArray.length(); i++) {
                                 JSONObject jsonObject1 = jsonArray.getJSONObject(i);
                                 JSONObject jsonObject2 = jsonObject1.getJSONObject("geometry");
-                                JSONObject jsonObject3 = jsonObject2.getJSONObject("bounds");
-                                JSONObject jsonObject4 = jsonObject3.getJSONObject("northeast");
-                                //directionPoint.add(new LatLng(jsonObject4.getDouble("lat"),jsonObject4.getDouble("lng")));
-                                /*JSONObject jsonObject5 = jsonObject3.getJSONObject("southwest");
-                                directionPoint.add(new LatLng(jsonObject5.getDouble("lat"),jsonObject5.getDouble("lng")));*/
                                 JSONObject jsonObject6 = jsonObject2.getJSONObject("location");
                                 directionPoint.add(new LatLng(jsonObject6.getDouble("lat"), jsonObject6.getDouble("lng")));
 
